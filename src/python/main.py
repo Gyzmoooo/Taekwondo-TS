@@ -156,84 +156,83 @@ class Predictor:
 
         return smv_classified
     
-    def split(self, etichette, df_dati, dimensione_gruppo=20, min_calcio_len=3):
+    def split(self, labels, df_data, group_dimension=20, min_kick_len=3):
         # 1. Identifica tutti i blocchi (Fermo e Calcio)
-        blocchi = []
-        if len(etichette) == 0:
+        blocks = []
+        if len(labels) == 0:
             return pd.DataFrame()
             
-        label_corrente, start_index = etichette[0], 0
-        for i in range(1, len(etichette)):
-            if etichette[i] != label_corrente:
-                blocchi.append({'label': label_corrente, 'start': start_index, 'end': i})
-                label_corrente, start_index = etichette[i], i
-        blocchi.append({'label': label_corrente, 'start': start_index, 'end': len(etichette)})
+        current_label, start_index = labels[0], 0
+        for i in range(1, len(labels)):
+            if labels[i] != current_label:
+                blocks.append({'label': current_label, 'start': start_index, 'end': i})
+                current_label, start_index = labels[i], i
+        blocks.append({'label': current_label, 'start': start_index, 'end': len(labels)})
         
         # 2. Filtra per tenere solo i blocchi di Calcio che superano la lunghezza minima
-        blocchi_calcio_validi = [
-            b for b in blocchi 
-            if b['label'] == 'Calcio' and (b['end'] - b['start']) >= min_calcio_len
+        valid_kick_blocks = [
+            b for b in blocks 
+            if b['label'] == 'Kick' and (b['end'] - b['start']) >= min_kick_len
         ]
 
-        lista_gruppi_appiattiti = []
-        ultimo_indice_usato = -1
+        flattened_groups_list = []
+        last_index = -1
 
         # 3. Itera sui blocchi validi per costruire i gruppi senza sovrapposizioni
-        for calcio_block in blocchi_calcio_validi:
-            calcio_start = calcio_block['start']
+        for kick_block in valid_kick_blocks:
+            kick_start = kick_block['start']
             
-            if calcio_start <= ultimo_indice_usato:
+            if kick_start <= last_index:
                 continue
 
-            calcio_end = calcio_block['end']
-            num_calcio = calcio_end - calcio_start
+            kick_end = kick_block['end']
+            num_kick = kick_end - kick_start
 
             # 4. Logica per garantire che il gruppo sia SEMPRE di dimensione fissa
-            if num_calcio >= dimensione_gruppo:
+            if num_kick >= group_dimension:
                 # Se il blocco è troppo grande, prendiamo solo i primi `dimensione_gruppo` elementi
-                start_gruppo = calcio_start
-                end_gruppo = calcio_start + dimensione_gruppo
+                group_start = kick_start
+                group_end = kick_start + group_dimension
             else:
                 # Altrimenti, calcola il padding necessario
-                padding_necessario = dimensione_gruppo - num_calcio
-                pre_padding_target = padding_necessario // 2
+                padding_needed = group_dimension - num_kick
+                pre_padding_target = padding_needed // 2
                 
                 # Limiti da cui possiamo prelevare padding
-                limite_pre = ultimo_indice_usato + 1
-                limite_post = len(etichette)
+                limit_pre = last_index + 1
+                limit_post = len(labels)
 
-                pre_padding_disponibile = calcio_start - limite_pre
-                post_padding_disponibile = limite_post - calcio_end
+                pre_padding_available = kick_start - limit_pre
+                post_padding_available = limit_post - kick_end
                 
                 # Logica di compensazione per distribuire il padding
-                pre_da_prendere = min(pre_padding_disponibile, pre_padding_target)
+                pre_to_take = min(pre_padding_available, pre_padding_target)
                 # Calcola quanto serve dopo, tenendo conto di quanto abbiamo già preso prima
-                post_da_prendere = min(post_padding_disponibile, padding_necessario - pre_da_prendere)
+                post_to_take = min(post_padding_available, padding_needed - pre_to_take)
                 
                 # Se dopo non c'era abbastanza, prova a prendere il resto da prima
-                mancanti = padding_necessario - (pre_da_prendere + post_da_prendere)
-                if mancanti > 0:
-                    pre_da_prendere += min(mancanti, pre_padding_disponibile - pre_da_prendere)
+                lacking = padding_needed - (pre_to_take + post_to_take)
+                if lacking > 0:
+                    pre_to_take += min(lacking, pre_padding_available - pre_to_take)
                 
                 # Se ancora non si raggiunge la dimensione, il gruppo non può essere formato
-                if pre_da_prendere + post_da_prendere + num_calcio < dimensione_gruppo:
+                if pre_to_take + post_to_take + num_kick < group_dimension:
                     continue
 
-                start_gruppo = calcio_start - pre_da_prendere
-                end_gruppo = calcio_end + post_da_prendere
+                start_group = kick_start - pre_to_take
+                end_group = kick_end + post_to_take
 
             # 5. Estrai la fetta dal DataFrame, appiattiscila e salvala
-            gruppo_df = df_dati.iloc[start_gruppo:end_gruppo]
-            riga_appiattita = gruppo_df.values.flatten()
-            lista_gruppi_appiattiti.append(riga_appiattita)
+            df_group = df_data.iloc[start_group:end_group]
+            flattened_row = df_group.values.flatten()
+            flattened_groups_list.append(flattened_row)
             
-            ultimo_indice_usato = end_gruppo - 1
+            last_index = end_group - 1
             
-        if not lista_gruppi_appiattiti:
+        if not flattened_groups_list:
             return pd.DataFrame()
 
-        return pd.DataFrame(lista_gruppi_appiattiti)
-
+        return pd.DataFrame(flattened_groups_list)
         
     def predict(self, kick_df):
         try:
@@ -299,10 +298,11 @@ class Predictor:
                     if not self.data_processor.delete_data_on_master():
                         print("WARN: Failed cleaning buffer Master.")
 
-                    for i in range(len(splitted_df)):
-                        kick = splitted_df.iloc[[i]]
-                        result = self.predict(kick)
-                        print(f"---> Kick prediction: {result} <---")
+                    if len(splitted_df) > 0:
+                        for i in range(len(splitted_df)):
+                            kick = splitted_df.iloc[[i]]
+                            result = self.predict(kick)
+                            print(f"---> Kick prediction: {result} <---")
 
                 except Exception as e_df:
                     print(f"\nERROR during prediction: {e_df}")
