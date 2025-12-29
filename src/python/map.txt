@@ -1,6 +1,6 @@
-bandal chagi dx
-bandal chagi sx
-chiki dx
-chiki sx
-cut dx
-cut sx
+Bandal chagi right leg
+Bandal chagi left leg
+Chiki right leg
+Chiki left leg
+Cut right leg
+Cut left leg

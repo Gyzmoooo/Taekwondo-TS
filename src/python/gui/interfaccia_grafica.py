@@ -15,14 +15,10 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Sprites Separati con PyQt6")
 
-        # Ottieni le dimensioni dello schermo principale
         screen_size = app.primaryScreen().size()
         
-        # Imposta la geometria della finestra a schermo intero
         self.setGeometry(0, 0, screen_size.width(), screen_size.height())
 
-        # ---
-        # Crea il primo sfondo, lo ridimensiona e lo rende visibile
         initial_background_pixmap = QPixmap('sfondo1.png')
         if not initial_background_pixmap.isNull():
             initial_background_pixmap = initial_background_pixmap.scaled(
@@ -34,8 +30,6 @@ class MainWindow(QMainWindow):
         self.initial_background.setPixmap(initial_background_pixmap)
         self.initial_background.setGeometry(0, 0, screen_size.width(), screen_size.height())
 
-        # ---
-        # Crea il secondo sfondo ('tamplate.png'), lo ridimensiona e lo nasconde
         template_background_pixmap = QPixmap('tamplate.png')
         if not template_background_pixmap.isNull():
             template_background_pixmap = template_background_pixmap.scaled(
@@ -48,8 +42,6 @@ class MainWindow(QMainWindow):
         self.template_background.setGeometry(0, 0, screen_size.width(), screen_size.height())
         self.template_background.hide()
         
-        # ---
-        # Crea gli altri sprite, che hanno una dimensione fissa, e li nasconde
         self.sfondo_calci = SpriteViewer('sfondo-calci.png', self)
         self.sfondo_calci.move(243, 243)
         self.sfondo_calci.hide()
