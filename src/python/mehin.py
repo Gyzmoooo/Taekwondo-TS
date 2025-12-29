@@ -10,6 +10,7 @@ from joblib import load
 import numpy as np
 import random
 
+import sys
 from PyQt6.QtWidgets import QApplication, QLabel, QMainWindow
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtCore import Qt
@@ -140,121 +141,9 @@ class DataProcessor:
         except Exception as e:
             print(f"Generic error during DELETE: {e}")
             return False
-        
-class SpriteViewer(QLabel):
-    def __init__(self, image_path, parent=None):
-        super().__init__(parent)
-        pixmap = QPixmap(image_path)
-        self.setPixmap(pixmap)
-        self.setFixedSize(pixmap.size())
-
-class MainWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Sprites Separati con PyQt6")
-
-        # Ottieni le dimensioni dello schermo principale
-        screen_size = app.primaryScreen().size()
-        
-        # Imposta la geometria della finestra a schermo intero
-        self.setGeometry(0, 0, screen_size.width(), screen_size.height())
-
-        # ---
-        # Crea il primo sfondo, lo ridimensiona e lo rende visibile
-        initial_background_pixmap = QPixmap('sfondo1.png')
-        if not initial_background_pixmap.isNull():
-            initial_background_pixmap = initial_background_pixmap.scaled(
-                screen_size,
-                Qt.AspectRatioMode.IgnoreAspectRatio,  # Ignora l'aspect ratio
-                Qt.TransformationMode.SmoothTransformation
-            )
-        self.initial_background = QLabel(self)
-        self.initial_background.setPixmap(initial_background_pixmap)
-        self.initial_background.setGeometry(0, 0, screen_size.width(), screen_size.height())
-
-        # ---
-        # Crea il secondo sfondo ('tamplate.png'), lo ridimensiona e lo nasconde
-        template_background_pixmap = QPixmap('tamplate.png')
-        if not template_background_pixmap.isNull():
-            template_background_pixmap = template_background_pixmap.scaled(
-                screen_size,
-                Qt.AspectRatioMode.IgnoreAspectRatio,
-                Qt.TransformationMode.SmoothTransformation
-            )
-        self.template_background = QLabel(self)
-        self.template_background.setPixmap(template_background_pixmap)
-        self.template_background.setGeometry(0, 0, screen_size.width(), screen_size.height())
-        self.template_background.hide()
-        
-        # ---
-        # Crea gli altri sprite, che hanno una dimensione fissa, e li nasconde
-        self.sfondo_calci = SpriteViewer('sfondo-calci.png', self)
-        self.sfondo_calci.move(243, 243)
-        self.sfondo_calci.hide()
-
-        self.kicks_recognition = SpriteViewer('kicks-recognition.png', self)
-        self.kicks_recognition.move(243, 25)
-        self.kicks_recognition.hide()
-
-        self.logo = SpriteViewer('logo.png', self)
-        self.logo.move(1500, 800)
-        self.logo.hide()
-
-        self.show_kicks()
-        
-        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-
-    def keyPressEvent(self, event):
-        if event.key() == Qt.Key.Key_Space:
-            self.initial_background.hide()
-            self.template_background.show()
-            self.sfondo_calci.show()
-            self.kicks_recognition.show()
-            self.logo.show()
-
-    def show_kicks(self, number_code):
-        c = 0
-        bandal = [260, 485, 710]
-        chiki = [280, 500, 725]
-        cut = [280, 500, 725]
-        dx = [300, 525, 750]
-        sx = [300, 525, 750]
-
-        for i in range(len(number_code)):
-            if number_code[i] == 0:
-                self.bandal.move(1000, bandal[c])
-                self.dx.move(1000, dx[c])
-                self.bandal.show()
-                self.dx.show()
-            if number_code[i] == 1:
-                self.bandal.move(1000, bandal[c])
-                self.sx.move(1000, sx[c])
-                self.bandal.show()
-                self.sx.show()
-            if number_code[i] == 2:
-                self.chiki.move(1000, chiki[c])
-                self.dx.move(1000, dx[c])
-                self.chiki.show()
-                self.dx.show()
-            if number_code[i] == 3:
-                self.chiki.move(1000, chiki[c])
-                self.sx.move(1000, sx[c])
-                self.chiki.show()
-                self.sx.show()
-            if number_code[i] == 4:
-                self.cut.move(1000, cut[c])
-                self.dx.move(1000, dx[c])
-                self.cut.show()
-                self.dx.show()
-            if number_code[i] == 5:
-                self.cut.move(1000, cut[c])
-                self.sx.move(1000, sx[c])
-                self.cut.show()
-                self.sx.show()
-            c += 1
 
 class Predictor:
-    def __init__(self, model, url_fetch, max_fetch_attempts, retry_delay_seconds, counter, data_processor: DataProcessor, gui: MainWindow):
+    def __init__(self, model, url_fetch, max_fetch_attempts, retry_delay_seconds, counter, counter2, data_processor: DataProcessor):
         self.model = model
         self.data_processor = data_processor
         self.columns = self.data_processor.generate_column_names()
@@ -289,7 +178,7 @@ class Predictor:
         return smv_classified
     
     def split(self, etichette, df_dati, dimensione_gruppo=20, min_calcio_len=3):
-        # Identifica tutti i blocchi (Fermo e Calcio)
+        # 1. Identifica tutti i blocchi (Fermo e Calcio)
         blocchi = []
         if len(etichette) == 0:
             return pd.DataFrame()
@@ -301,6 +190,7 @@ class Predictor:
                 label_corrente, start_index = etichette[i], i
         blocchi.append({'label': label_corrente, 'start': start_index, 'end': len(etichette)})
         
+        # 2. Filtra per tenere solo i blocchi di Calcio che superano la lunghezza minima
         blocchi_calcio_validi = [
             b for b in blocchi 
             if b['label'] == 'Calcio' and (b['end'] - b['start']) >= min_calcio_len
@@ -309,6 +199,7 @@ class Predictor:
         lista_gruppi_appiattiti = []
         ultimo_indice_usato = -1
 
+        # 3. Itera sui blocchi validi per costruire i gruppi senza sovrapposizioni
         for calcio_block in blocchi_calcio_validi:
             calcio_start = calcio_block['start']
             
@@ -318,32 +209,41 @@ class Predictor:
             calcio_end = calcio_block['end']
             num_calcio = calcio_end - calcio_start
 
+            # 4. Logica per garantire che il gruppo sia SEMPRE di dimensione fissa
             if num_calcio >= dimensione_gruppo:
+                # Se il blocco è troppo grande, prendiamo solo i primi `dimensione_gruppo` elementi
                 start_gruppo = calcio_start
                 end_gruppo = calcio_start + dimensione_gruppo
             else:
+                # Altrimenti, calcola il padding necessario
                 padding_necessario = dimensione_gruppo - num_calcio
                 pre_padding_target = padding_necessario // 2
                 
+                # Limiti da cui possiamo prelevare padding
                 limite_pre = ultimo_indice_usato + 1
                 limite_post = len(etichette)
 
                 pre_padding_disponibile = calcio_start - limite_pre
                 post_padding_disponibile = limite_post - calcio_end
                 
+                # Logica di compensazione per distribuire il padding
                 pre_da_prendere = min(pre_padding_disponibile, pre_padding_target)
+                # Calcola quanto serve dopo, tenendo conto di quanto abbiamo già preso prima
                 post_da_prendere = min(post_padding_disponibile, padding_necessario - pre_da_prendere)
                 
+                # Se dopo non c'era abbastanza, prova a prendere il resto da prima
                 mancanti = padding_necessario - (pre_da_prendere + post_da_prendere)
                 if mancanti > 0:
                     pre_da_prendere += min(mancanti, pre_padding_disponibile - pre_da_prendere)
                 
+                # Se ancora non si raggiunge la dimensione, il gruppo non può essere formato
                 if pre_da_prendere + post_da_prendere + num_calcio < dimensione_gruppo:
                     continue
 
                 start_gruppo = calcio_start - pre_da_prendere
                 end_gruppo = calcio_end + post_da_prendere
 
+            # 5. Estrai la fetta dal DataFrame, appiattiscila e salvala
             gruppo_df = df_dati.iloc[start_gruppo:end_gruppo]
             riga_appiattita = gruppo_df.values.flatten()
             lista_gruppi_appiattiti.append(riga_appiattita)
@@ -354,6 +254,7 @@ class Predictor:
             return pd.DataFrame()
 
         return pd.DataFrame(lista_gruppi_appiattiti)
+
         
     def predict(self, kick_df):
         try:
@@ -373,6 +274,9 @@ class Predictor:
                 kicks_list = export_(f, m)
 
         lista = [kicks_list[i:i + 3] for i in range(0, len(kicks_list), 3)]
+
+        
+
         while self._is_running:
     
             data = []
@@ -446,14 +350,106 @@ class Predictor:
         print("Request to stop the worker thread...")
         self._is_running = False
 
+class SpriteViewer(QLabel):
+    def __init__(self, image_path, parent=None):
+        super().__init__(parent)
+        pixmap = QPixmap(image_path)
+        self.setPixmap(pixmap)
+        self.setFixedSize(pixmap.size())
+
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Sprites Separati con PyQt6")
+
+        # Ottieni le dimensioni dello schermo principale
+        screen_size = app.primaryScreen().size()
+        
+        # Imposta la geometria della finestra a schermo intero
+        self.setGeometry(0, 0, screen_size.width(), screen_size.height())
+
+        # ---
+        # Crea il primo sfondo, lo ridimensiona e lo rende visibile
+        initial_background_pixmap = QPixmap('sfondo1.png')
+        if not initial_background_pixmap.isNull():
+            initial_background_pixmap = initial_background_pixmap.scaled(
+                screen_size,
+                Qt.AspectRatioMode.IgnoreAspectRatio,  # Ignora l'aspect ratio
+                Qt.TransformationMode.SmoothTransformation
+            )
+        self.initial_background = QLabel(self)
+        self.initial_background.setPixmap(initial_background_pixmap)
+        self.initial_background.setGeometry(0, 0, screen_size.width(), screen_size.height())
+
+        # ---
+        # Crea il secondo sfondo ('tamplate.png'), lo ridimensiona e lo nasconde
+        template_background_pixmap = QPixmap('tamplate.png')
+        if not template_background_pixmap.isNull():
+            template_background_pixmap = template_background_pixmap.scaled(
+                screen_size,
+                Qt.AspectRatioMode.IgnoreAspectRatio,
+                Qt.TransformationMode.SmoothTransformation
+            )
+        self.template_background = QLabel(self)
+        self.template_background.setPixmap(template_background_pixmap)
+        self.template_background.setGeometry(0, 0, screen_size.width(), screen_size.height())
+        self.template_background.hide()
+        
+        # ---
+        # Crea gli altri sprite, che hanno una dimensione fissa, e li nasconde
+        self.sfondo_calci = SpriteViewer('sfondo-calci.png', self)
+        self.sfondo_calci.move(243, 243)
+        self.sfondo_calci.hide()
+
+        self.kicks_recognition = SpriteViewer('kicks-recognition.png', self)
+        self.kicks_recognition.move(243, 25)
+        self.kicks_recognition.hide()
+
+        self.logo = SpriteViewer('logo.png', self)
+        self.logo.move(1500, 800)
+        self.logo.hide()
+
+        
+        self.bandal = SpriteViewer('bandal_chagi.png', self)
+        self.bandal.move(550, 710)
+        self.bandal.hide()
+
+        self.chiki = SpriteViewer('chiki.png', self)
+        self.chiki.move(550, 280)
+        self.chiki.hide()
+
+        self.cut = SpriteViewer('cut.png', self)
+        self.cut.move(550, 500)
+        self.cut.hide()
+
+        self.dx = SpriteViewer('dx.png', self)
+        self.dx.move(1000, 300)
+        self.dx.hide()
+
+        self.sx = SpriteViewer('sx.png', self)
+        self.sx.move(1000, 525)
+        self.sx.hide()
+        
+        
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+    def keyPressEvent(self, event):
+        if event.key() == Qt.Key.Key_Space:
+            self.initial_background.hide()
+            self.template_background.show()
+            self.sfondo_calci.show()
+            self.kicks_recognition.show()
+            self.logo.show()
+            
+            self.bandal.show()
+            self.chiki.show()
+            self.cut.show()
+            self.dx.show()
+            self.sx.show()
 
 
 if __name__ == "__main__":
     print("Loading the model...")
-    app = QApplication(sys.argv)
-    window = MainWindow()
-    window.showFullScreen()
-    sys.exit(app.exec())
     try:
         model = load(MODEL_PATH)
         print("Model loaded succesfully.")

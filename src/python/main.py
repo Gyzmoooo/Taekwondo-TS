@@ -1,4 +1,3 @@
-
 import sys
 import time
 import re
@@ -9,12 +8,6 @@ import requests
 import pandas as pd
 from joblib import load
 import numpy as np
-import random
-
-import sys
-from PyQt6.QtWidgets import QApplication, QLabel, QMainWindow
-from PyQt6.QtGui import QPixmap
-from PyQt6.QtCore import Qt
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = BASE_DIR.strip("src\python") + '\model\\rf_model.sav'
@@ -32,19 +25,6 @@ EXPECTED_DATA_COLUMNS = len(SENSORS) * len(AXES) * NUM_BOARDS
 
 MAX_FETCH_ATTEMPTS = 2
 RETRY_DELAY_SECONDS = 2
-counter = 0
-counter2 = 0
-
-def export_(f, m):
-    map = m.readlines()
-    map = [line.strip() for line in map]
-    kl = []
-    for i in f:
-        kicks = i.strip()
-        for j in kicks:
-            kl.append(map[int(j)])
-    
-    return kl
 
 class UnsufficientSamples(Exception):
     """Exception raised when the number of samples received is less than expected"""
@@ -144,7 +124,7 @@ class DataProcessor:
             return False
 
 class Predictor:
-    def __init__(self, model, url_fetch, max_fetch_attempts, retry_delay_seconds, counter, counter2, data_processor: DataProcessor):
+    def __init__(self, model, url_fetch, max_fetch_attempts, retry_delay_seconds, data_processor: DataProcessor):
         self.model = model
         self.data_processor = data_processor
         self.columns = self.data_processor.generate_column_names()
@@ -152,8 +132,6 @@ class Predictor:
         self.url_fetch = url_fetch
         self.max_fetch_attempts = max_fetch_attempts
         self.retry_delay_seconds = retry_delay_seconds
-        self.counter = counter
-        self.counter2 = counter
 
     def compute_smv(self, df):
         out_list = []
@@ -269,17 +247,7 @@ class Predictor:
         return prediction_result
     
     def run(self):
-        parsed = ""
-        with open('kicks.txt') as f:
-            with open('map.txt') as m:
-                kicks_list = export_(f, m)
-
-        lista = [kicks_list[i:i + 3] for i in range(0, len(kicks_list), 3)]
-
-        
-
         while self._is_running:
-    
             data = []
             try:
                 response = requests.get(self.url_fetch, timeout=10)
@@ -292,7 +260,7 @@ class Predictor:
                     print("Nothing there! :(")
                 else:
                     parsed = self.data_processor.parse(raw)
-                    #data = self.data_processor.format(parsed)
+                    data = self.data_processor.format(parsed)
 
             except requests.exceptions.Timeout:
                 print(f"Timeout di requests.")
@@ -319,24 +287,22 @@ class Predictor:
                 traceback.print_exc()
                 self._is_running = False
             
-            if parsed:
+            if data:
                 try:
                     kick_df = pd.DataFrame(data, columns=self.columns)
                     smv = self.compute_smv(kick_df)
                     
                     smv_classified = self.classify_samples(smv)
                     splitted_df = self.split(smv_classified, kick_df)
-                    self.counter2 = self.counter
+
                     #print("Cleaning data buffer on Master ESP...")
                     if not self.data_processor.delete_data_on_master():
                         print("WARN: Failed cleaning buffer Master.")
 
-                    for i in lista[self.counter]: 
-                        print(i)
-                        time.sleep(random.uniform(1, 2))
-                    time.sleep(4)
-                    
-                    self.counter += 1
+                    for i in range(len(splitted_df)):
+                        kick = splitted_df.iloc[[i]]
+                        result = self.predict(kick)
+                        print(f"---> Kick prediction: {result} <---")
 
                 except Exception as e_df:
                     print(f"\nERROR during prediction: {e_df}")
@@ -345,11 +311,11 @@ class Predictor:
 
         if self._is_running:
             time.sleep(1)
-            
 
     def stop(self):
         print("Request to stop the worker thread...")
         self._is_running = False
+
 
 if __name__ == "__main__":
     print("Loading the model...")
@@ -384,9 +350,7 @@ if __name__ == "__main__":
         data_processor=data_processor,
         url_fetch=URL_FETCH,
         max_fetch_attempts=MAX_FETCH_ATTEMPTS,
-        retry_delay_seconds=RETRY_DELAY_SECONDS,
-        counter=counter,
-        counter2=counter2
+        retry_delay_seconds=RETRY_DELAY_SECONDS
     )
 
     try:
