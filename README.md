@@ -1,6 +1,4 @@
 # Taekwondo TS
-### Train hard, kick smart!
-
 **Taekwondo Training-System** is the world’s first data collection system designed specifically for Taekwondo, allowing athletes to monitor and improve their fighting skills through objective statistical data. The first prototype of the system, whose code is inside this repository, system utilizes wearable "Smartstraps" and a ML model to identify kicks.
 
 > [!WARNING]
