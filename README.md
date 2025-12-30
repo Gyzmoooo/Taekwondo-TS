@@ -35,8 +35,6 @@ Each strap is housed in a 3D-printed ABS box and contains:
     * Conda
 
     ### Setup with Conda
-    Note: Before running the command, ensure you remove the 'prefix' line at the bottom of `environment.yml` to avoid path conflicts on different machines.
-
     ```bash
     conda env create -f environment.yml
     conda activate TKDconda
@@ -48,6 +46,7 @@ Each strap is housed in a 3D-printed ABS box and contains:
 
 ## 👥 The Team
 Developed by:
-* **Simone Gismondi**: Hardware construction, 3D design, soldering, and PCB design.
 * **Giulio Gismondi**: Project manager, software developer, and AI model training.
+* **Simone Gismondi**: Hardware construction, 3D design, soldering, and PCB design.
+
 ---
