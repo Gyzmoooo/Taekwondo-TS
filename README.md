@@ -1,5 +1,5 @@
 # Taekwondo TS
-**Taekwondo Training-System** is the world’s first data collection system designed specifically for Taekwondo, allowing athletes to monitor and improve their fighting skills through objective statistical data. The first prototype of the system, whose code is inside this repository, system utilizes wearable "Smartstraps" and a ML model to identify kicks.
+**Taekwondo Training-System** is the world’s first data collection system designed specifically for Taekwondo, allowing athletes to monitor and improve their fighting skills through objective statistical data. The first prototype of the system, whose code is inside this repository, utilizes wearable "Smartstraps" and a ML model to identify kicks.
 
 > [!WARNING]
 > **Disclaimer:** This repository is public for display purposes. The project is **not intended to be reproducible**, since it is an early-prototype version of a potential future product.
